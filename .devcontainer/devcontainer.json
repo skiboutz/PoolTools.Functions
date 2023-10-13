@@ -1,31 +1,30 @@
 {
-    "name": "Azure Developer CLI",
-    "image": "mcr.microsoft.com/devcontainers/python:3.10-bullseye",
-    "features": {
-        // See https://containers.dev/features for list of features
-        "ghcr.io/devcontainers/features/docker-in-docker:2": {
-        },
-        "ghcr.io/azure/azure-dev/azd:latest": {}
-    },
-    "customizations": {
-        "vscode": {
-            "extensions": [
-                "GitHub.vscode-github-actions",
-                "ms-azuretools.azure-dev",
-                "ms-azuretools.vscode-azurefunctions",
-                "ms-azuretools.vscode-bicep",
-                "ms-azuretools.vscode-docker"
-                // Include other VSCode language extensions if needed
-                // Right click on an extension inside VSCode to add directly to devcontainer.json, or copy the extension ID
-            ]
-        }
-    },
-    "forwardPorts": [
-        // Forward ports if needed for local development
-    ],
-    "postCreateCommand": "",
-    "remoteUser": "vscode",
-    "hostRequirements": {
-        "memory": "8gb"
-    }
+	"name": "PoolTools Functions",
+	"dockerFile": "Dockerfile",
+	"forwardPorts": [ 7071 ],
+
+	// Configure tool-specific properties.
+	"customizations": {
+		// Configure properties specific to VS Code.
+		"vscode": {
+			// Add the IDs of extensions you want installed when the container is created.
+			"extensions": [
+				"ms-azuretools.vscode-azurefunctions",
+				"ms-azuretools.vscode-docker",
+				"ms-python.python",
+				"Azurite.azurite"
+			]
+		}
+	},
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	// "postCreateCommand": "dotnet restore",
+
+	// Set `remoteUser` to `root` to connect as root instead. More info: https://aka.ms/vscode-remote/containers/non-root.
+	"remoteUser": "vscode",
+	"features": {
+		"ghcr.io/devcontainers/features/azure-cli:1": {},
+		"ghcr.io/devcontainers/features/docker-in-docker:2": {},
+		"ghcr.io/azure/azure-dev/azd:0": {}
+	}
 }

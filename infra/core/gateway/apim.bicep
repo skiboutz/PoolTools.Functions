@@ -30,7 +30,8 @@ param applicationInsightsName string
 resource apimService 'Microsoft.ApiManagement/service@2021-08-01' = {
   name: name
   location: location
-  tags: union(tags, { 'azd-service-name': name })
+  //tags: union(tags, { 'azd-service-name': name })
+  tags: tags
   sku: {
     name: sku
     capacity: (sku == 'Consumption') ? 0 : ((sku == 'Developer') ? 1 : skuCount)

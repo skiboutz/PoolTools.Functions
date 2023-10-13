@@ -18,7 +18,18 @@ param location string
 // "resourceGroupName": {
 //      "value": "myGroupName"
 // }
+param applicationInsightsDashboardName string = ''
+param applicationInsightsName string = ''
+param appServicePlanName string = ''
+param keyVaultName string = ''
+param logAnalyticsName string = ''
 param resourceGroupName string = ''
+param serviceBusNamespaceName string = ''
+param serviceBusQueueName string = ''
+param storageAccountName string = ''
+
+@description('Id of the user or app to assign application roles')
+param principalId string = ''
 
 var abbrs = loadJsonContent('./abbreviations.json')
 
@@ -29,17 +40,10 @@ var tags = {
 }
 
 // Generate a unique token to be used in naming resources.
-// Remove linter suppression after using.
-#disable-next-line no-unused-vars
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
 
 // Name of the service defined in azure.yaml
-// A tag named azd-service-name with this value should be applied to the service host resource, such as:
-//   Microsoft.Web/sites for appservice, function
-// Example usage:
-//   tags: union(tags, { 'azd-service-name': apiServiceName })
-#disable-next-line no-unused-vars
-var apiServiceName = 'python-api'
+var apiServiceName = 'pooltools-functions'
 
 // Organize resources in a resource group
 resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
@@ -48,19 +52,102 @@ resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
   tags: tags
 }
 
-// Add resources to be provisioned below.
-// A full example that leverages azd bicep modules can be seen in the todo-python-mongo template:
-// https://github.com/Azure-Samples/todo-python-mongo/tree/main/infra
+module api './app/api.bicep' = {
+  name: 'api'
+  scope: rg
+  params: {
+    name: !empty(apiServiceName) ? apiServiceName : '${abbrs.webSitesFunctions}api-${resourceToken}'
+    location: location
+    tags: tags
+    applicationInsightsName: monitoring.outputs.applicationInsightsName
+    appServicePlanId: appServicePlan.outputs.id
+    keyVaultName: keyVault.outputs.name
+    storageAccountName: storage.outputs.name
+    appSettings: {
+      SigningQueueConnection__fullyQualifiedName: serviceBus.outputs.namespaceFqdn
+    }
+  }
+}
 
+// Give the API access to KeyVault
+module apiKeyVaultAccess './core/security/keyvault-access.bicep' = {
+  name: 'api-keyvault-access'
+  scope: rg
+  params: {
+    keyVaultName: keyVault.outputs.name
+    principalId: api.outputs.SERVICE_API_IDENTITY_PRINCIPAL_ID
+  }
+}
 
+module appServicePlan './core/host/appserviceplan.bicep' = {
+  name: 'appserviceplan'
+  scope: rg
+  params: {
+    name: !empty(appServicePlanName) ? appServicePlanName : '${abbrs.webServerFarms}${resourceToken}'
+    location: location
+    tags: tags
+    sku: {
+      name: 'Y1'
+      tier: 'Dynamic'
+    }
+  }
+}
 
-// Add outputs from the deployment here, if needed.
-//
-// This allows the outputs to be referenced by other bicep deployments in the deployment pipeline,
-// or by the local machine as a way to reference created resources in Azure for local development.
-// Secrets should not be added here.
-//
-// Outputs are automatically saved in the local azd environment .env file.
-// To see these outputs, run `azd env get-values`,  or `azd env get-values --output json` for json output.
+// Backing storage for Azure functions backend API
+module storage './core/storage/storage-account.bicep' = {
+  name: 'storage'
+  scope: rg
+  params: {
+    name: !empty(storageAccountName) ? storageAccountName : '${abbrs.storageStorageAccounts}${resourceToken}'
+    location: location
+    tags: tags
+  }
+}
+
+// Store secrets in a keyvault
+module keyVault './core/security/keyvault.bicep' = {
+  name: 'keyvault'
+  scope: rg
+  params: {
+    name: !empty(keyVaultName) ? keyVaultName : '${abbrs.keyVaultVaults}${resourceToken}'
+    location: location
+    tags: tags
+    principalId: principalId
+  }
+}
+
+// ServiceBus to push events to
+module serviceBus 'core/servicebus/servicebus.bicep' = {
+  name: 'serviceBus'
+  scope: rg
+  params:{
+    location: location
+    serviceBusNamespaceName: !empty(serviceBusNamespaceName) ? serviceBusNamespaceName : '${abbrs.serviceBusNamespaces}${environmentName}'
+    queues:[
+      {
+        name: serviceBusQueueName
+      }
+    ]
+  }
+}
+
+// Monitor application with Azure Monitor
+module monitoring './core/monitor/monitoring.bicep' = {
+  name: 'monitoring'
+  scope: rg
+  params: {
+    location: location
+    tags: tags
+    logAnalyticsName: !empty(logAnalyticsName) ? logAnalyticsName : '${abbrs.operationalInsightsWorkspaces}${resourceToken}'
+    applicationInsightsName: !empty(applicationInsightsName) ? applicationInsightsName : '${abbrs.insightsComponents}${resourceToken}'
+    applicationInsightsDashboardName: !empty(applicationInsightsDashboardName) ? applicationInsightsDashboardName : '${abbrs.portalDashboards}${resourceToken}'
+  }
+}
+
+output APPLICATIONINSIGHTS_CONNECTION_STRING string = monitoring.outputs.applicationInsightsConnectionString
+output AZURE_KEY_VAULT_ENDPOINT string = keyVault.outputs.endpoint
+output AZURE_KEY_VAULT_NAME string = keyVault.outputs.name
 output AZURE_LOCATION string = location
 output AZURE_TENANT_ID string = tenant().tenantId
+output FUNCTIONS_ENDPOINT string = api.outputs.SERVICE_API_URI
+

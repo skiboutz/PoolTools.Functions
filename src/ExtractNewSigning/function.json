@@ -1,0 +1,18 @@
+{
+  "scriptFile": "__init__.py",
+  "bindings": [
+    {
+      "schedule": "0 59 23 * * *",
+      "name": "myTimer",
+      "type": "timerTrigger",
+      "direction": "in"
+    },
+    {
+      "type": "serviceBus",
+      "name": "msg",
+      "direction": "out",
+      "connection": "SigningQueueConnection",
+      "queueName": "signings"
+    }
+  ]
+}
