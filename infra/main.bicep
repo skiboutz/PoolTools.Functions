@@ -42,8 +42,7 @@ var tags = {
 // Generate a unique token to be used in naming resources.
 var resourceToken = toLower(uniqueString(subscription().id, environmentName, location))
 
-// Name of the service defined in azure.yaml
-var apiServiceName = 'pooltools-functions-${environmentName}'
+var funcServiceName = environmentName
 
 // Organize resources in a resource group
 resource rg 'Microsoft.Resources/resourceGroups@2021-04-01' = {
@@ -56,7 +55,7 @@ module api './app/func.bicep' = {
   name: 'functions'
   scope: rg
   params: {
-    name: !empty(apiServiceName) ? apiServiceName : '${abbrs.webSitesFunctions}api-${resourceToken}'
+    name: !empty(funcServiceName) ? funcServiceName : '${abbrs.webSitesFunctions}api-${resourceToken}'
     location: location
     tags: tags
     applicationInsightsName: monitoring.outputs.applicationInsightsName

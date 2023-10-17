@@ -7,11 +7,11 @@ param applicationInsightsName string = ''
 param appServicePlanId string
 param appSettings object = {}
 param keyVaultName string
-param serviceName string = 'pooltools'
+param serviceName string = 'pooltools-functions'
 param storageAccountName string
 
 module api '../core/host/functions.bicep' = {
-  name: '${serviceName}-functions'
+  name: serviceName
   params: {
     name: name
     location: location
